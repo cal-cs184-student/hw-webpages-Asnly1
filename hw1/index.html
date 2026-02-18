@@ -61,15 +61,9 @@
       <br />
 
       Link to webpage:
-      <a href="https://cal-cs184-student.github.io/hw-webpages-Asnly1/"
-        >cs184.eecs.berkeley.edu/sp25</a
-      >
-
-      <br />
-
-      Link to GitHub repository:
-      <a href="https://cs184.eecs.berkeley.edu/sp25"
-        >cs184.eecs.berkeley.edu/sp25</a
+      <a
+        href="https://cal-cs184-student.github.io/hw-webpages-Asnly1/hw1/index.html"
+        >https://cal-cs184-student.github.io/hw-webpages-Asnly1/hw1/index.html</a
       >
 
       <h2>Overview</h2>
@@ -77,7 +71,8 @@
         In this project, I implemented a rasterizer that supports triangle
         rasterization, supersampling-based antialiasing, 2D transforms,
         barycentric coordinate interpolation, texture mapping with pixel
-        sampling and level sampling (mipmaps), and anisotropic filtering.
+        sampling and level sampling, and transformation from png to svg using
+        quadtree(Extra Credit).
       </p>
       <p>Key takeaways:</p>
       <ul>
@@ -94,13 +89,6 @@
           visual quality. Supersampling is conceptually the simplest but most
           expensive; pixel-level bilinear sampling and mipmap-based level
           sampling offer better cost-quality tradeoffs.
-        </li>
-        <li>
-          Anisotropic filtering addresses a real limitation of isotropic
-          mipmaps: when a surface is viewed at an oblique angle, the footprint
-          in texture space is elongated, and standard mipmaps over-blur in one
-          direction. Sampling along the major axis at a finer mipmap level
-          preserves detail where it matters.
         </li>
       </ul>
 
@@ -237,11 +225,61 @@
         it entirely. Otherwise, fall back to incremental traversal within the
         block.
       </p>
+      <p><b>Why some "optimizations" slow down:</b></p>
       <p>
-        <b>Why some "optimizations" slow down:</b> Pre-calculating constants and
-        exchanging loop order both hurt cache hit rate. The compiler already
-        performs constant folding, and x-major loop order naturally aligns with
-        row-major memory layout.
+        <b>V2 (Pre-calculate constants):</b> The compiler already performs
+        constant folding in the naive version, so manually hoisting edge-test
+        constants into local variables adds register pressure without saving
+        computation.
+      </p>
+      <p>
+        <b>V3 (Exchange loop order):</b> V3 changed the loop order from x-outer
+        y-inner to y-outer x-inner. The sample buffer is indexed as
+        <code>(y * width + x) * sample_rate + ...</code> (row-major), so y-outer
+        x-inner should theoretically be more cache-friendly (inner loop stride =
+        <code>sample_rate</code>, vs <code>width * sample_rate</code> for
+        x-outer y-inner). Yet V3 is consistently slower. Possible explanations:
+        (1) the compiler may generate different auto-vectorization or
+        loop-unrolling strategies for the two loop structures; (2) hardware
+        prefetcher heuristics may interact differently with the two access
+        patterns; (3) branch prediction for the triangle edge test may behave
+        differently&mdash;scanning along rows vs columns produces different
+        inside/outside transition patterns depending on triangle geometry.
+      </p>
+      <p>
+        To further verify, I reverted V2 and V3 individually on top of the best
+        tiled version (tile=8):
+      </p>
+      <table class="benchmark">
+        <tr>
+          <th>Variant (tile=8 base)</th>
+          <th>Mean (ms)</th>
+          <th>Std (ms)</th>
+        </tr>
+        <tr>
+          <td>All optimizations (V2+V3+V4+V5)</td>
+          <td>0.545</td>
+          <td>0.034</td>
+        </tr>
+        <tr>
+          <td>Revert V2 (pre-calculate) only</td>
+          <td>0.583</td>
+          <td>0.022</td>
+        </tr>
+        <tr>
+          <td>Revert V3 (loop order) only</td>
+          <td>0.526</td>
+          <td>0.025</td>
+        </tr>
+        <tr>
+          <td>Revert both V2 and V3</td>
+          <td>0.571</td>
+          <td>0.027</td>
+        </tr>
+      </table>
+      <p>
+        Reverting V3 alone yields the best result (0.526 ms), consistent with V3
+        hurting performance even within tiled traversal.
       </p>
 
       <h2>Task 2: Antialiasing by Supersampling</h2>
@@ -325,11 +363,12 @@
         </table>
       </div>
       <p>
-        At 1 spp, the skinny triangle corner exhibits severe jaggies: pixels are
-        binary (fully colored or background). At 4 spp, partially-covered pixels
-        receive intermediate colors, visibly smoothing edges. At 16 spp, the
-        finer sub-pixel resolution captures even subtler degrees of coverage,
-        producing nearly continuous transitions at triangle boundaries.
+        When sample rate = 1, the skinny triangle corner exhibits severe
+        jaggies: pixels are binary (fully colored or background). When sample
+        rate = 4, partially-covered pixels receive intermediate colors, visibly
+        smoothing edges. When sample rate = 16, the finer sub-pixel resolution
+        captures even subtler degrees of coverage, producing nearly continuous
+        transitions at triangle boundaries.
       </p>
 
       <h3>Extra Credit: Jittered Sampling</h3>
@@ -453,7 +492,8 @@
 
       <h3>
         Q1. Explain pixel sampling and describe how you implemented it for
-        texture mapping.
+        texture mapping. Briefly discuss the two different pixel sampling
+        methods, nearest and bilinear.
       </h3>
       <p>
         Pixel sampling maps screen-space pixel coordinates to texture
@@ -527,8 +567,8 @@
       </p>
 
       <h3>
-        Q3. When will there be a large difference between the two methods and
-        why?
+        Q3. Comment on the relative differences. Discuss when there will be a
+        large difference between the two methods and why.
       </h3>
       <p>
         The gap is largest during texture magnification (each texel maps to
@@ -566,8 +606,7 @@
         <li>
           <b>L_LINEAR:</b> Compute the continuous mipmap level the same way,
           then sample from both the floor and ceiling levels and linearly
-          interpolate between them (trilinear filtering when combined with
-          bilinear pixel sampling).
+          interpolate between them.
         </li>
         <li>
           <b>L_ANISOTROPIC:</b> Compute the mipmap level using the
@@ -588,7 +627,7 @@
           <th>Technique</th>
           <th>Speed</th>
           <th>Memory</th>
-          <th>Antialiasing Quality</th>
+          <th>Antialiasing Power</th>
         </tr>
         <tr>
           <td><b>Pixel sampling</b> (nearest vs bilinear)</td>
@@ -599,8 +638,7 @@
           <td>No additional memory beyond the base texture.</td>
           <td>
             Bilinear smooths magnification artifacts but does not address
-            minification aliasing (multiple texels mapping to one pixel).
-            Limited antialiasing power on its own.
+            minification aliasing. Limited antialiasing power on its own.
           </td>
         </tr>
         <tr>
@@ -610,15 +648,11 @@
             L_NEAREST adds one extra level lookup; L_LINEAR doubles the pixel
             sampling cost; anisotropic multiplies it by the anisotropy ratio.
           </td>
-          <td>
-            Mipmaps require ~33% extra memory (sum of 1/4 + 1/16 + ... of the
-            base texture).
-          </td>
+          <td>Mipmaps require ~33% extra memory.</td>
           <td>
             Effectively handles minification aliasing by pre-filtering the
-            texture at multiple scales. Combined with bilinear pixel sampling
-            (trilinear), produces smooth results across varying texture
-            densities.
+            texture at multiple scales. Combined with bilinear pixel sampling ,
+            produces smooth results across varying texture densities.
           </td>
         </tr>
         <tr>
@@ -632,18 +666,11 @@
             the framebuffer memory.
           </td>
           <td>
-            Most general: reduces aliasing from all sources (geometry edges,
-            texture, shading). But brute-force and expensive for the quality
-            gained compared to targeted techniques.
+            Most general: reduces aliasing very well. But brute-force and
+            expensive.
           </td>
         </tr>
       </table>
-      <p>
-        In practice, the best quality-to-cost ratio comes from combining
-        bilinear pixel sampling with mipmap level sampling (trilinear
-        filtering), supplemented by moderate supersampling (e.g., 4 spp) for
-        geometry edge antialiasing.
-      </p>
 
       <h3>
         Q3. Show four versions of an image using combinations of
@@ -695,14 +722,56 @@
       </p>
 
       <h2>Extra Credit: Draw Something Creative</h2>
-      <figure>
-        <img src="./images/competition.png" style="width: 70%" />
-        <figcaption>
-          Generated using an adaptive quadtree-based SVG generation script
-          (<code>src/generate_svg.cpp</code>) that converts a PNG image into
-          color-interpolated SVG triangles.
-        </figcaption>
-      </figure>
+      <p>
+        Generated using an adaptive quadtree-based SVG generation script
+        (<code>src/generate_svg.cpp</code>) that converts a PNG image into
+        color-interpolated SVG triangles (with AI help). Below is a comparison
+        at different triangle budgets:
+      </p>
+      <div style="display: flex; flex-direction: column; align-items: center">
+        <table
+          style="width: 100%; text-align: center; border-collapse: collapse"
+        >
+          <tr>
+            <td style="text-align: center">
+              <img src="./images/landscape.png" width="400px" />
+              <figcaption>Original</figcaption>
+            </td>
+            <td style="text-align: center">
+              <img src="./images/landscape_2000.png" width="400px" />
+              <figcaption>2,000 triangles</figcaption>
+            </td>
+          </tr>
+          <tr>
+            <td style="text-align: center">
+              <img src="./images/landscape_4000.png" width="400px" />
+              <figcaption>4,000 triangles</figcaption>
+            </td>
+            <td style="text-align: center">
+              <img src="./images/landscape_8000.png" width="400px" />
+              <figcaption>8,000 triangles</figcaption>
+            </td>
+          </tr>
+          <tr>
+            <td style="text-align: center">
+              <img src="./images/landscape_16000.png" width="400px" />
+              <figcaption>16,000 triangles</figcaption>
+            </td>
+            <td style="text-align: center">
+              <img src="./images/landscape_32000.png" width="400px" />
+              <figcaption>
+                32,000 triangles (The one I use for competition)
+              </figcaption>
+            </td>
+          </tr>
+        </table>
+      </div>
+      <p>
+        With more triangles, the quadtree subdivides finer, and the rendering
+        progressively recovers detail in high-frequency regions (mountain edges,
+        water reflections) while smooth areas (sky, water surface) remain
+        coarse.
+      </p>
 
       <h3>Algorithm Overview</h3>
       <p>
