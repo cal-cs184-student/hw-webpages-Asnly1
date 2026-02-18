@@ -1,6 +1,6 @@
 ---
 layout: homework
-title: "CS184/284A Spring 2026 Homework 1 Write-Up"
+title: "CS184/284A Spring 2026 Homework 1"
 author: "Name: Haoyi Yu"
 hw: hw1
 ---
@@ -39,17 +39,17 @@ Key takeaways:
 
 The following statistic is based on running for 200 times and the first 100 results are excluded to fully warm up the cache.
 
-| Version | Mean (ms) | Std (ms) | Notes |
-|---------|-----------|----------|-------|
-| V1: Naive | 0.979 | 0.029 | Baseline |
-| V2: Pre-calculate constants | 1.037 | 0.025 | Slower: compiler already did this; extra variables hurt cache |
-| V3: Exchange loop order (y-x) | 1.219 | 0.025 | Slower: original x-y order fits cache line better |
-| V4: Incremental traversal | 0.801 | 0.024 | Use addition instead of multiplication via linear property of edge functions |
-| V5: Tiled (tile=2) | 1.238 | 0.048 | Too small tile, overhead dominates |
-| V5: Tiled (tile=4) | 0.643 | 0.034 | |
-| V5: Tiled (tile=8) | 0.545 | 0.034 | Best: ~1.8x speedup over naive |
-| V5: Tiled (tile=16) | 0.640 | 0.038 | |
-| V5: Tiled (tile=32) | 0.934 | 0.030 | Larger tiles reduce benefit of skipping |
+| Version                       | Mean (ms) | Std (ms) | Notes                                                                        |
+| ----------------------------- | --------- | -------- | ---------------------------------------------------------------------------- |
+| V1: Naive                     | 0.979     | 0.029    | Baseline                                                                     |
+| V2: Pre-calculate constants   | 1.037     | 0.025    | Slower: compiler already did this; extra variables hurt cache                |
+| V3: Exchange loop order (y-x) | 1.219     | 0.025    | Slower: original x-y order fits cache line better                            |
+| V4: Incremental traversal     | 0.801     | 0.024    | Use addition instead of multiplication via linear property of edge functions |
+| V5: Tiled (tile=2)            | 1.238     | 0.048    | Too small tile, overhead dominates                                           |
+| V5: Tiled (tile=4)            | 0.643     | 0.034    |                                                                              |
+| V5: Tiled (tile=8)            | 0.545     | 0.034    | Best: ~1.8x speedup over naive                                               |
+| V5: Tiled (tile=16)           | 0.640     | 0.038    |                                                                              |
+| V5: Tiled (tile=32)           | 0.934     | 0.030    | Larger tiles reduce benefit of skipping                                      |
 
 **Tiled traversal (tile=8):** First test a block of pixels. If the block is fully inside the triangle, simply rasterize all pixels without per-pixel edge tests. If the block is fully outside the triangle, skip it entirely. Otherwise, fall back to incremental traversal within the block.
 
@@ -61,12 +61,12 @@ The following statistic is based on running for 200 times and the first 100 resu
 
 To further verify, I reverted V2 and V3 individually on top of the best tiled version (tile=8):
 
-| Variant (tile=8 base) | Mean (ms) | Std (ms) |
-|------------------------|-----------|----------|
-| All optimizations (V2+V3+V4+V5) | 0.545 | 0.034 |
-| Revert V2 (pre-calculate) only | 0.583 | 0.022 |
-| Revert V3 (loop order) only | 0.526 | 0.025 |
-| Revert both V2 and V3 | 0.571 | 0.027 |
+| Variant (tile=8 base)           | Mean (ms) | Std (ms) |
+| ------------------------------- | --------- | -------- |
+| All optimizations (V2+V3+V4+V5) | 0.545     | 0.034    |
+| Revert V2 (pre-calculate) only  | 0.583     | 0.022    |
+| Revert V3 (loop order) only     | 0.526     | 0.025    |
+| Revert both V2 and V3           | 0.571     | 0.027    |
 
 Reverting V3 alone yields the best result (0.526 ms), consistent with V3 hurting performance even within tiled traversal.
 
@@ -177,7 +177,7 @@ Modification: Added a rotation matrix `rotation = translate(0.5, 0.5) * rotate(a
 
 ### Q1. Explain barycentric coordinates in your own words.
 
-Barycentric coordinates decompose a point into a linear combination of three vertices. Mathematically, given a point P and triangle vertices A, B, C: $ P = \alpha A + \beta B + \gamma C $, where $ \alpha = S_{PBC} / S_{ABC} $, $ \beta = S_{PAC} / S_{ABC} $, $ \gamma = S_{PAB} / S_{ABC} $. Each coefficient represents the relative area of the sub-triangle opposite to the corresponding vertex, normalized by the total triangle area.
+Barycentric coordinates decompose a point into a linear combination of three vertices. Mathematically, given a point P and triangle vertices A, B, C: $ P = \alpha A + \beta B + \gamma C $, where $ \alpha = S*{PBC} / S*{ABC} $, $ \beta = S*{PAC} / S*{ABC} $, $ \gamma = S*{PAB} / S*{ABC} $. Each coefficient represents the relative area of the sub-triangle opposite to the corresponding vertex, normalized by the total triangle area.
 
 <figure>
   <img src="./images/write_4_picture_triangle.png" style="width: 50%">
@@ -238,7 +238,7 @@ At 1 sample per pixel, nearest sampling shows clear blocky artifacts and sharp d
 
 ### Q3. Comment on the relative differences. Discuss when there will be a large difference between the two methods and why.
 
-The gap is largest during texture magnification (each texel maps to multiple screen pixels): nearest sampling produces blocky patches while bilinear smoothly interpolates between texels. The difference is minimal when texture and screen resolutions are closely matched (1:1 mapping), or when a high supersampling rate provides enough spatial averaging to mask nearest sampling's artifacts.
+The gap is largest during texture magnification: nearest sampling produces blocky patches while bilinear smoothly interpolates between texels. The difference is minimal when texture and screen resolutions are closely matched (1:1 mapping), or when a high supersampling rate provides enough spatial averaging to mask nearest sampling's artifacts.
 
 ## Task 6: "Level Sampling" with mipmaps for texture mapping
 
@@ -251,15 +251,15 @@ Implementation:
 - **L_ZERO:** Always sample from the full-resolution (level 0) mipmap.
 - **L_NEAREST:** Compute the mipmap level as log<sub>2</sub> of the maximum norm of the screen-space derivatives (dx_uv, dy_uv), then round to the nearest integer. Sample from that single mipmap level.
 - **L_LINEAR:** Compute the continuous mipmap level the same way, then sample from both the floor and ceiling levels and linearly interpolate between them.
-- **L_ANISOTROPIC:** Compute the mipmap level using the *shorter* of the two derivatives, so the selected level preserves detail along the minor axis. Then take multiple samples along the longer derivative direction and average them. This avoids the over-blurring that isotropic mipmaps produce at oblique viewing angles.
+- **L_ANISOTROPIC:** Compute the mipmap level using the shorter of the two derivatives, so the selected level preserves detail along the minor axis. Then take multiple samples along the longer derivative direction and average them. This avoids the over-blurring that isotropic mipmaps produce at oblique viewing angles.
 
 ### Q2. Describe the tradeoffs between pixel sampling, level sampling, and supersampling.
 
-| Technique | Speed | Memory | Antialiasing Power |
-|-----------|-------|--------|--------------------|
-| **Pixel sampling** (nearest vs bilinear) | Fastest. Nearest requires 1 texel lookup; bilinear requires 4 lookups + 3 lerps. Negligible overhead either way. | No additional memory beyond the base texture. | Bilinear smooths magnification artifacts but does not address minification aliasing. Limited antialiasing power on its own. |
-| **Level sampling** (mipmaps) | Moderate. Requires computing screen-space derivatives per pixel. L_NEAREST adds one extra level lookup; L_LINEAR doubles the pixel sampling cost; anisotropic multiplies it by the anisotropy ratio. | Mipmaps require ~33% extra memory. | Effectively handles minification aliasing by pre-filtering the texture at multiple scales. Combined with bilinear pixel sampling, produces smooth results across varying texture densities. |
-| **Supersampling** | Slowest. Cost scales linearly with sample rate: 16 spp is 16x the work of 1 spp, including both rasterization and texture lookups. | Sample buffer scales linearly with sample rate: 16 spp requires 16x the framebuffer memory. | Most general: reduces aliasing very well. But brute-force and expensive. |
+| Technique                                | Speed                                                                                                                                                                                                | Memory                                                                                      | Antialiasing Power                                                                                                                                                                          |
+| ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Pixel sampling** (nearest vs bilinear) | Fastest. Nearest requires 1 texel lookup; bilinear requires 4 lookups + 3 lerps. Negligible overhead either way.                                                                                     | No additional memory beyond the base texture.                                               | Bilinear smooths magnification artifacts but does not address minification aliasing. Limited antialiasing power on its own.                                                                 |
+| **Level sampling** (mipmaps)             | Moderate. Requires computing screen-space derivatives per pixel. L_NEAREST adds one extra level lookup; L_LINEAR doubles the pixel sampling cost; anisotropic multiplies it by the anisotropy ratio. | Mipmaps require ~33% extra memory.                                                          | Effectively handles minification aliasing by pre-filtering the texture at multiple scales. Combined with bilinear pixel sampling, produces smooth results across varying texture densities. |
+| **Supersampling**                        | Slowest. Cost scales linearly with sample rate: 16 spp is 16x the work of 1 spp, including both rasterization and texture lookups.                                                                   | Sample buffer scales linearly with sample rate: 16 spp requires 16x the framebuffer memory. | Most general: reduces aliasing very well. But brute-force and expensive.                                                                                                                    |
 
 ### Q3. Show four versions of an image using combinations of L_ZERO/L_NEAREST and P_NEAREST/P_LINEAR.
 
