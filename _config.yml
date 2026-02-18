@@ -1,1 +1,8 @@
-theme: jekyll-theme-cayman
+title: CS184/284A Homework
+url: "https://cal-cs184-student.github.io"
+baseurl: "/hw-webpages-Asnly1"
+
+markdown: kramdown
+kramdown:
+  input: GFM
+  math_engine: null
