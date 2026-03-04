@@ -32,26 +32,30 @@ Implementation: Given a vector of points, for i from 0 to size-1, use the lerp f
   <table>
     <tr>
       <td>
+        <img src="./images/step0.png" width="400px">
+        <figcaption>Level 0 (original control points)</figcaption>
+      </td>
+      <td>
         <img src="./images/step1.png" width="400px">
         <figcaption>Step 1</figcaption>
       </td>
+    </tr>
+    <tr>
       <td>
         <img src="./images/step2.png" width="400px">
         <figcaption>Step 2</figcaption>
       </td>
-    </tr>
-    <tr>
       <td>
         <img src="./images/step3.png" width="400px">
         <figcaption>Step 3</figcaption>
       </td>
+    </tr>
+    <tr>
       <td>
         <img src="./images/step4.png" width="400px">
         <figcaption>Step 4</figcaption>
       </td>
-    </tr>
-    <tr>
-      <td colspan="2">
+      <td>
         <img src="./images/step5.png" width="400px">
         <figcaption>Step 5 (final evaluated point)</figcaption>
       </td>
@@ -87,9 +91,10 @@ Implementation: Repeatedly call evaluateStep (evaluate1D) to reduce the control 
 
 #### Q1. Briefly explain how you implemented the area-weighted vertex normals.
 
-1. Get `HalfedgeCIter h` of the vertex.
-2. Use `h->twin()->vertex()` and `h->twin()->next()->twin()->vertex()` to get the first and second neighbours.
-3. Compute each incident face's area-weighted normal, sum them, and normalize the result.
+1. Get the vertex's halfedge `h`.
+2. Use a `do-while` loop, advancing via `h = h->twin()->next()`, to traverse all incident faces around the vertex.
+3. For each face, retrieve the two edge vectors from the vertex and compute their cross product, which gives the face normal scaled by the parallelogram area (i.e., area-weighted).
+4. Accumulate all area-weighted normals and normalize the result.
 
 #### Q2. Show screenshots of dae/teapot.dae comparing teapot shading with and without vertex normals.
 
@@ -118,10 +123,20 @@ Implementation Tricks: Reassign pointers by triangles.
 
 #### Q2. Show screenshots of the teapot before and after some edge flips.
 
-<figure>
-  <img src="./images/Part4.png" style="width: 70%">
-  <figcaption>Teapot before and after edge flips.</figcaption>
-</figure>
+<div class="image-grid">
+  <table>
+    <tr>
+      <td>
+        <img src="./images/original_Part4.png" width="400px">
+        <figcaption>Before edge flips</figcaption>
+      </td>
+      <td>
+        <img src="./images/Part4.png" width="400px">
+        <figcaption>After edge flips</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
 
 #### Q3. Write about your eventful debugging journey, if you have experienced one.
 
@@ -160,17 +175,37 @@ Implementation tricks: Do not move the external edges, otherwise you have to sto
 
 #### Q2. Show screenshots of a mesh before and after some edge splits.
 
-<figure>
-  <img src="./images/split_Part5.png" style="width: 70%">
-  <figcaption>Mesh before and after edge splits.</figcaption>
-</figure>
+<div class="image-grid">
+  <table>
+    <tr>
+      <td>
+        <img src="./images/original_Part5.png" width="400px">
+        <figcaption>Before edge splits</figcaption>
+      </td>
+      <td>
+        <img src="./images/split_Part5.png" width="400px">
+        <figcaption>After edge splits</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
 
 #### Q3. Show screenshots of a mesh before and after a combination of both edge splits and edge flips.
 
-<figure>
-  <img src="./images/split_flip_Part5.png" style="width: 70%">
-  <figcaption>Mesh before and after a combination of edge splits and edge flips.</figcaption>
-</figure>
+<div class="image-grid">
+  <table>
+    <tr>
+      <td>
+        <img src="./images/original_Part5.png" width="400px">
+        <figcaption>Before edge splits and flips</figcaption>
+      </td>
+      <td>
+        <img src="./images/split_flip_Part5.png" width="400px">
+        <figcaption>After edge splits and flips</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
 
 #### Q4. Write about your eventful debugging journey, if you have experienced one.
 
@@ -253,11 +288,11 @@ Generally, I follow the spec and do the steps in order:
   </table>
 </div>
 
-**What happens:** Sharp corners and edges become smooth.
+**What happens:** Sharp corners and edges become smooth after repeated subdivision.
 
-**Reason:** Vertices are averaged by their neighbours.
+**Reason:** Loop subdivision's update formula replaces each vertex position with a weighted average of itself and its neighbors: `(1 - n*u) * original_position + u * neighbor_position_sum`. This pulls every vertex toward the centroid of its neighbors, eroding sharp features over successive iterations.
 
-**Pre-processing:** Pre-split the corner several times to increase its neighbours such that it will not move as much after averaging.
+**Pre-processing:** Pre-splitting edges near sharp corners increases the local vertex density. With more vertices packed tightly around a corner, the averaging effect stays localized. Each vertex's neighbors are closer to its original position, so the corner retains its shape better through subdivision.
 
 #### Q3. Load dae/cube.dae. Perform several iterations of loop subdivision on the cube. Notice that the cube becomes slightly asymmetric after repeated subdivisions. Can you pre-process the cube with edge flips and splits so that the cube subdivides symmetrically? Document these effects and explain why they occur. Also explain how your pre-processing helps alleviate the effects.
 
@@ -286,9 +321,9 @@ Generally, I follow the spec and do the steps in order:
   </table>
 </div>
 
-**Reason:** The original vertex degrees are: 3, 4, 4, 4, 5, 5, 5, 6. For the vertex whose degree is 3, its self-weight in the position update formula is lower than that of other vertices, so it shifts more from its original position.
+**Reason:** The original cube mesh has only one diagonal edge per face, and the diagonal directions are inconsistent across faces. This causes vertex degrees to range from 3 to 6 (specifically: 3, 4, 4, 4, 5, 5, 5, 6). In the Loop subdivision update formula, the self-weight `(1 - n*u)` depends on the vertex degree `n`. Vertices with lower degree (e.g., degree 3) receive a smaller self-weight and are pulled more strongly toward their neighbors, breaking the cube's symmetry.
 
-**Pre-processing:** Split each diagonal so that every vertex has degree 6 and therefore the weights become the same.
+**Pre-processing:** Split each face's diagonal so that all vertex degrees equal to 6, giving every vertex the same self-weight in the update formula, and the cube subdivides symmetrically.
 
 #### Q4. Extra Credit
 
