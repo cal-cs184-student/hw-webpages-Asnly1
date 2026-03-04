@@ -7,63 +7,313 @@ hw: hw2
 
 ## Overview
 
-Give a high-level overview of what you implemented in this homework. Think about what you've built as a whole. Share your thoughts on what interesting things you've learned from completing the homework.
+In this project, I implemented geometric modeling techniques including Bezier curve/surface evaluation using de Casteljau's algorithm, triangle mesh operations (area-weighted vertex normals, edge flip, edge split), and Loop subdivision for mesh upsampling. I also implemented support for boundary edges and the modified Butterfly subdivision scheme as extra credit.
+
+Key takeaways:
+
+- The half-edge data structure is powerful but error-prone: careful bookkeeping of all pointer reassignments (drawing "before" and "after" diagrams) is essential for correctness in mesh operations like edge flip and split.
+- Loop subdivision's averaging behavior smooths sharp features. Pre-processing (splitting edges or flipping diagonals) can preserve symmetry and reduce unwanted smoothing by controlling vertex valence before subdivision.
 
 ## Section I: Bezier Curves and Surfaces
 
 ### Part 1: Bezier curves with 1D de Casteljau subdivision
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+#### Q1. Briefly explain de Casteljau's algorithm and how you implemented it in order to evaluate Bezier curves.
 
-Here is an example 2x2 gridlike structure. You might find this useful for framing and showing your result images in an organized fashion.
+de Casteljau's algorithm: Given N control points and parameter t, use linear interpolation to compute the N-1 control points of the next subdivision level. By applying this step recursively, we finally get a single point that lies on the Bezier curve.
+
+Implementation: given a vector of points, for i from 0 to size-1, use the lerp function to compute the control points of the next subdivision level. Do this recursively.
+
+#### Q2. Take a look at the provided .bzc files and create your own Bezier curve with 6 control points of your choosing. Use this Bezier curve for your screenshots below.
+
+#### Q3. Show screenshots of each step / level of the evaluation from the original control points down to the final evaluated point.
 
 <div class="image-grid">
   <table>
     <tr>
       <td>
-        <img src="teapot.png" width="400px">
-        <figcaption>Caption goes here.</figcaption>
+        <img src="./images/step1.png" width="400px">
+        <figcaption>Step 1</figcaption>
       </td>
       <td>
-        <img src="teapot.png" width="400px">
-        <figcaption>Caption goes here.</figcaption>
+        <img src="./images/step2.png" width="400px">
+        <figcaption>Step 2</figcaption>
       </td>
     </tr>
     <tr>
       <td>
-        <img src="teapot.png" width="400px">
-        <figcaption>Caption goes here.</figcaption>
+        <img src="./images/step3.png" width="400px">
+        <figcaption>Step 3</figcaption>
       </td>
       <td>
-        <img src="teapot.png" width="400px">
-        <figcaption>Caption goes here.</figcaption>
+        <img src="./images/step4.png" width="400px">
+        <figcaption>Step 4</figcaption>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <img src="./images/step5.png" width="400px">
+        <figcaption>Step 5 (final evaluated point)</figcaption>
       </td>
     </tr>
   </table>
 </div>
 
+#### Q4. Show a screenshot of a slightly different Bezier curve by moving the original control points around and modifying the parameter t via mouse scrolling.
+
+<figure>
+  <img src="./images/Q4.png" style="width: 70%">
+  <figcaption>Modified Bezier curve with different control point positions and parameter t.</figcaption>
+</figure>
+
 ### Part 2: Bezier surfaces with separable 1D de Casteljau
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+#### Q1. Briefly explain how de Casteljau algorithm extends to Bezier surfaces and how you implemented it in order to evaluate Bezier surfaces.
+
+Extension: Apply de Casteljau's algorithm to each row of control points to converge each row into a single point. Then use all of these points (which form a new set of size n) to run de Casteljau's algorithm one more time.
+
+Implementation: Continuously call evaluateStep (evaluate1D) to converge control points into one final point and collect the final points into a vector. Finally, call evaluate1D on the final points to get the point lying on the surface.
+
+#### Q2. Show a screenshot of bez/teapot.bez (not .dae) evaluated by your implementation.
+
+<figure>
+  <img src="./images/teapot_Part2.png" style="width: 70%">
+  <figcaption>Teapot rendered from bez/teapot.bez using Bezier surface evaluation.</figcaption>
+</figure>
 
 ## Section II: Triangle Meshes and Half-Edge Data Structure
 
 ### Part 3: Area-weighted vertex normals
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+#### Q1. Briefly explain how you implemented the area-weighted vertex normals.
+
+First, get HalfedgeCIter h of that Vertex. Then, use `h->twin()->vertex()` and `h->twin()->next()->twin()->vertex()` to get the first neighbour and second neighbour. After getting the neighbours, compute the face normal and finally normalize them.
+
+#### Q2. Show screenshots of dae/teapot.dae comparing teapot shading with and without vertex normals.
+
+<div class="image-grid">
+  <table>
+    <tr>
+      <td>
+        <img src="./images/no_weighted_Part3.png" width="400px">
+        <figcaption>Without vertex normals (flat shading)</figcaption>
+      </td>
+      <td>
+        <img src="./images/weighted_Part3.png" width="400px">
+        <figcaption>With vertex normals (Phong shading)</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
 
 ### Part 4: Edge flip
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+#### Q1. Briefly explain how you implemented the edge flip operation and describe any interesting implementation / debugging tricks you have used.
+
+Following the guidance to first collect all iterators from the "before" picture, then reassign them according to the "after" picture.
+
+Implementation Tricks: Reassign pointers by triangles.
+
+#### Q2. Show screenshots of the teapot before and after some edge flips.
+
+<figure>
+  <img src="./images/Part4.png" style="width: 70%">
+  <figcaption>Teapot before and after edge flips.</figcaption>
+</figure>
+
+#### Q3. Write about your eventful debugging journey, if you have experienced one.
+
+First: I initially wrote `v0 = h2->vertex()`, which is simply reordering the halfedge pointers. Instead, I should write `v0->halfedge() = h2`, which reorders the vertex's pointer.
+
+Second: I was confused about the degenerate case: Suppose D is the midpoint of BC of triangle ABC and we want to flip AD. The result is that the edge AD is deleted and no new edge is created, illustrated by the pictures:
+
+<div class="image-grid">
+  <table>
+    <tr>
+      <td>
+        <img src="./images/degenerate_before_Part4.png" width="300px">
+        <figcaption>Before flip (degenerate case)</figcaption>
+      </td>
+      <td>
+        <img src="./images/degenerate_after_Part4.png" width="300px">
+        <figcaption>After flip (degenerate case)</figcaption>
+      </td>
+      <td>
+        <img src="./images/correct_Part4.png" width="300px">
+        <figcaption>Correct understanding</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
+
+It took me quite a while to get the answer: flipping AD creates a new edge BC, which has already existed, and therefore it seems like only AD is deleted and no new edge is created.
 
 ### Part 5: Edge split
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+#### Q1. Briefly explain how you implemented the edge split operation and describe any interesting implementation / debugging tricks you have used.
+
+The implementation process is quite similar to Part 4, which is also drawing the "Before" and "After" graph and reassigning pointers according to the graph.
+
+Implementation tricks: Do not move the external edges, otherwise you have to store their original next halfedges and faces.
+
+#### Q2. Show screenshots of a mesh before and after some edge splits.
+
+<figure>
+  <img src="./images/split_Part5.png" style="width: 70%">
+  <figcaption>Mesh before and after edge splits.</figcaption>
+</figure>
+
+#### Q3. Show screenshots of a mesh before and after a combination of both edge splits and edge flips.
+
+<figure>
+  <img src="./images/split_flip_Part5.png" style="width: 70%">
+  <figcaption>Mesh before and after a combination of edge splits and edge flips.</figcaption>
+</figure>
+
+#### Q4. Write about your eventful debugging journey, if you have experienced one.
+
+When implementing Part 4, I did not draw the "After" graph but only followed the guidance since it had already been drawn. And when I drew the "After" graph for Part 5, I simply drew a new graph without looking at the "Before" graph, which resulted in two serious problems: 1. the new vertex v4 should be the midpoint of v0 and v1, however, I reordered the vertices and it became the midpoint of v0 and v2. 2. I let the external halfedges h6, h7, h8, h9 become internal edges and created new halfedges to be new external edges. However, the external faces were not stored and therefore lost. After I drew a new "After" graph following the "Before" graph, I correctly implemented this Part.
+
+<div class="image-grid">
+  <table>
+    <tr>
+      <td>
+        <img src="./images/wrong_after_Part5.png" width="400px">
+        <figcaption>Wrong "After" graph</figcaption>
+      </td>
+      <td>
+        <img src="./images/correct_after_Part5.png" width="400px">
+        <figcaption>Correct "After" graph</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
+
+#### Q5. If you have implemented support for boundary edges, show screenshots of your implementation properly handling split operations on boundary edges.
+
+<div class="image-grid">
+  <table>
+    <tr>
+      <td>
+        <img src="./images/boundary_before_Part5.png" width="400px">
+        <figcaption>Before boundary edge split</figcaption>
+      </td>
+      <td>
+        <img src="./images/boundary_after_Part5.png" width="400px">
+        <figcaption>After boundary edge split</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
 
 ### Part 6: Loop subdivision for mesh upsampling
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+#### Q1. Briefly explain how you implemented the loop subdivision and describe any interesting implementation / debugging tricks you have used.
 
-## (Optional) Section III: Art Competition
+Generally, I follow the spec and do the steps in order:
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+1. Reset all vertices/edges' `isNew = false` to avoid collision of multiple loop subdivision.
+2. **Step A.1:** Compute the positions of new vertices: for boundary edges, see Q4 below; for internal edges, use halfedge traversal to find 4 neighbour vertices and compute the new position according to the formula: 3/8 &times; (A + B) + 1/8 &times; (C + D).
+3. **Step A.2:** Compute the positions of old vertices: for boundary vertices, see Q4 below; for internal vertices, find all neighbours and compute the new position according to the formula: (1 - n &times; u) &times; original_position + u &times; original_neighbor_position_sum.
+4. **Step B.1:** Split original edges: save all original edges to avoid splitting new edges. For each original edge, split it and save the new vertex. Moreover, traverse all halfedges of the new vertex to find edges that connect a new vertex and an old vertex.
+5. **Step B.2:** Flip new edges that connect a new vertex and an old vertex.
+6. **Step C:** Update positions: update new vertex's position using `e::newPosition` and old vertex's position using `v::newPosition`.
+
+#### Q2. Take some notes, as well as some screenshots, of your observations on how meshes behave after loop subdivision. What happens to sharp corners and edges? Can you reduce this effect by pre-splitting some edges?
+
+<div class="image-grid">
+  <table>
+    <tr>
+      <td>
+        <img src="./images/torus_0_Part6.png" width="400px">
+        <figcaption>Original torus</figcaption>
+      </td>
+      <td>
+        <img src="./images/torus_4_Part6.png" width="400px">
+        <figcaption>Torus after 4 subdivisions</figcaption>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <img src="./images/split_torus_0_Part6.png" width="400px">
+        <figcaption>Pre-split torus</figcaption>
+      </td>
+      <td>
+        <img src="./images/split_torus_4_Part6.png" width="400px">
+        <figcaption>Pre-split torus after 4 subdivisions</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
+
+What happens: sharp corners and edges become smooth.
+
+Reason: vertices are averaged by their neighbours.
+
+Pre-processing: pre-split the corner several times to increase its neighbours such that it will not move as much after averaging.
+
+#### Q3. Load dae/cube.dae. Perform several iterations of loop subdivision on the cube. Notice that the cube becomes slightly asymmetric after repeated subdivisions. Can you pre-process the cube with edge flips and splits so that the cube subdivides symmetrically? Document these effects and explain why they occur. Also explain how your pre-processing helps alleviate the effects.
+
+<div class="image-grid">
+  <table>
+    <tr>
+      <td>
+        <img src="./images/cube_0_Part6.png" width="400px">
+        <figcaption>Original cube</figcaption>
+      </td>
+      <td>
+        <img src="./images/cube_1_Part6.png" width="400px">
+        <figcaption>Cube after 1 subdivision (asymmetric)</figcaption>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <img src="./images/split_diagonal_0_Part6.png" width="400px">
+        <figcaption>Pre-processed cube (split diagonals)</figcaption>
+      </td>
+      <td>
+        <img src="./images/split_diagonal_1_Part6.png" width="400px">
+        <figcaption>Pre-processed cube after 1 subdivision (symmetric)</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
+
+Reason: The original vertex degrees are: 3, 4, 4, 4, 5, 5, 5, 6. For the vertex whose degree is 3, the weight of itself in computing the new position is less than others and therefore it is less likely to keep its position.
+
+Pre-processing: split each diagonal so that every vertex has degree 6 and therefore the weights become the same.
+
+#### Q4. Extra Credit
+
+**Extra Credit 1: Support meshes with boundary**
+
+According to H. Biermann, A. Levin, and D. Zorin, _Piecewise smooth subdivision surfaces with normal control_, Proceedings of SIGGRAPH 00, 2000, pp. 113–120: for boundary edges, the position of the new vertex should be the average of the two endpoints; for boundary vertices, the new position should be 3/4 of the old position + 1/8 &times; the sum of two neighbour boundary points.
+
+**Extra Credit 2: Modified Butterfly subdivision scheme**
+
+I implemented the modified Butterfly scheme. According to D. Zorin, P. Schröder, and W. Sweldens, the only difference is the calculation of new vertices and there is no need to update old vertices.
+
+<div class="image-grid">
+  <table>
+    <tr>
+      <td>
+        <img src="./images/cube_1_Part6.png" width="400px">
+        <figcaption>1 subdivision (Loop scheme)</figcaption>
+      </td>
+      <td>
+        <img src="./images/cube_2_Part6.png" width="400px">
+        <figcaption>2 subdivisions (Loop scheme)</figcaption>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <img src="./images/cube_butterfly_1_Part6.png" width="400px">
+        <figcaption>1 subdivision (Butterfly scheme)</figcaption>
+      </td>
+      <td>
+        <img src="./images/cube_butterfly_2_Part6.png" width="400px">
+        <figcaption>2 subdivisions (Butterfly scheme)</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
