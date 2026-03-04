@@ -287,11 +287,19 @@ Pre-processing: split each diagonal so that every vertex has degree 6 and theref
 
 **Extra Credit 1: Support meshes with boundary**
 
-According to H. Biermann, A. Levin, and D. Zorin, _Piecewise smooth subdivision surfaces with normal control_, Proceedings of SIGGRAPH 00, 2000, pp. 113–120: for boundary edges, the position of the new vertex should be the average of the two endpoints; for boundary vertices, the new position should be 3/4 of the old position + 1/8 &times; the sum of two neighbour boundary points.
+According to H. Biermann, A. Levin, and D. Zorin, [_Piecewise smooth subdivision surfaces with normal control_](https://cims.nyu.edu/gcl/papers/biermann2000pss.pdf), Proceedings of SIGGRAPH 00, 2000, pp. 113–120: for boundary edges, the position of the new vertex should be the average of the two endpoints; for boundary vertices, the new position should be 3/4 of the old position + 1/8 &times; the sum of two neighbour boundary points.
 
 **Extra Credit 2: Modified Butterfly subdivision scheme**
 
-I implemented the modified Butterfly scheme. According to D. Zorin, P. Schröder, and W. Sweldens, the only difference is the calculation of new vertices and there is no need to update old vertices.
+I implemented the modified Butterfly scheme. According to D. Zorin, P. Schröder, and W. Sweldens, [_Interpolating Subdivision for Meshes with Arbitrary Topology_](https://mrl.cs.nyu.edu/~dzorin/papers/zorin1996ism.pdf), the only difference is the calculation of new vertices and there is no need to update old vertices. For boundary edges, the position of new vertex should be -1/16 \* (position of the previous boundary vertex of one endpoint + position of the next boundary vertex of another endpoint) + 9/16 \* (sum of positions of two endpoints).
+
+For internal edges, there are 3 cases:
+
+1. Both endpoints have degree of 6: we can use the graph to illustrate the update rules:
+   ![Butterfly Rules](./images/butterfly.png)
+   where a =1/2, b=1/8, c= -1/16, d=0
+2. One endpoint has degree 6 and the other has degree K (K &ne; 6): only use the K neighbours of the irregular vertex. The new position is 3/4 \* old_position + the weighted sum of those neighbours' positions, where the weight for the j-th neighbour is s_j = (1/4 + cos(2&pi;j/K) + 1/2 cos(4&pi;j/K)) / K. Special cases: for K = 3, s_0 = 5/12, s_1 = s_2 = -1/12; for K = 4, s_0 = 3/8, s_2 = -1/8, s_1 = s_3 = 0.
+3. Both endpoints do not have degree of 6: take the average of the values computed in case two.
 
 <div class="image-grid">
   <table>
