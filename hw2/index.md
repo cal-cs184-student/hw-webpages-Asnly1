@@ -93,7 +93,7 @@ Implementation: Repeatedly call evaluateStep (evaluate1D) to reduce the control 
 
 1. Get the vertex's halfedge `h`.
 2. Use a `do-while` loop, advancing via `h = h->twin()->next()`, to traverse all incident faces around the vertex.
-3. For each face, retrieve the two edge vectors from the vertex and compute their cross product, which gives the face normal scaled by the parallelogram area (i.e., area-weighted).
+3. For each face, retrieve the two edge vectors from the vertex and compute their cross product, which gives the face normal scaled by the parallelogram area.
 4. Accumulate all area-weighted normals and normalize the result.
 
 #### Q2. Show screenshots of dae/teapot.dae comparing teapot shading with and without vertex normals.
@@ -256,7 +256,7 @@ Generally, I follow the spec and do the steps in order:
 
 1. Reset all vertices/edges' `isNew = false` to avoid collision of multiple loop subdivision.
 2. **Step A.1:** Compute the positions of new vertices: for boundary edges, see Q4 below; for internal edges, use halfedge traversal to find 4 neighbour vertices and compute the new position according to the formula: 3/8 &times; (A + B) + 1/8 &times; (C + D).
-3. **Step A.2:** Compute the positions of old vertices: for boundary vertices, see Q4 below; for internal vertices, find all neighbours and compute the new position according to the formula: (1 - n &times; u) &times; original_position + u &times; original_neighbor_position_sum.
+3. **Step A.2:** Compute the positions of old vertices: for boundary vertices, see Q4 below; for internal vertices, find all neighbours and compute the new position according to the formula: (1 - n &times; u) &times; original_position + u &times; original_neighbour_position_sum.
 4. **Step B.1:** Split original edges: store all original edges first to avoid splitting newly created edges. For each original edge, split it and save the new vertex. Additionally, traverse all halfedges of the new vertex to find edges that connect a new vertex and an old vertex.
 5. **Step B.2:** Flip new edges that connect a new vertex and an old vertex.
 6. **Step C:** Update positions: update new vertex's position using `e::newPosition` and old vertex's position using `v::newPosition`.
@@ -290,9 +290,9 @@ Generally, I follow the spec and do the steps in order:
 
 **What happens:** Sharp corners and edges become smooth after repeated subdivision.
 
-**Reason:** Loop subdivision's update formula replaces each vertex position with a weighted average of itself and its neighbors: `(1 - n*u) * original_position + u * neighbor_position_sum`. This pulls every vertex toward the centroid of its neighbors, eroding sharp features over successive iterations.
+**Reason:** Loop subdivision's update formula replaces each vertex position with a weighted average of itself and its neighbours: `(1 - n*u) * original_position + u * neighbour_position_sum`. This pulls every vertex toward the centroid of its neighbours, eroding sharp features over successive iterations.
 
-**Pre-processing:** Pre-splitting edges near sharp corners increases the local vertex density. With more vertices packed tightly around a corner, the averaging effect stays localized. Each vertex's neighbors are closer to its original position, so the corner retains its shape better through subdivision.
+**Pre-processing:** Pre-splitting edges near sharp corners increases the local vertex density. With more vertices packed tightly around a corner, the averaging effect stays localized. Each vertex's neighbours are closer to its original position, so the corner retains its shape better through subdivision.
 
 #### Q3. Load dae/cube.dae. Perform several iterations of loop subdivision on the cube. Notice that the cube becomes slightly asymmetric after repeated subdivisions. Can you pre-process the cube with edge flips and splits so that the cube subdivides symmetrically? Document these effects and explain why they occur. Also explain how your pre-processing helps alleviate the effects.
 
@@ -321,7 +321,7 @@ Generally, I follow the spec and do the steps in order:
   </table>
 </div>
 
-**Reason:** The original cube mesh has only one diagonal edge per face, and the diagonal directions are inconsistent across faces. This causes vertex degrees to range from 3 to 6 (specifically: 3, 4, 4, 4, 5, 5, 5, 6). In the Loop subdivision update formula, the self-weight `(1 - n*u)` depends on the vertex degree `n`. Vertices with lower degree (e.g., degree 3) receive a smaller self-weight and are pulled more strongly toward their neighbors, breaking the cube's symmetry.
+**Reason:** The original cube mesh has only one diagonal edge per face, and the diagonal directions are inconsistent across faces. This causes vertex degrees to range from 3 to 6 (specifically: 3, 4, 4, 4, 5, 5, 5, 6). In the Loop subdivision update formula, the self-weight `(1 - n*u)` depends on the vertex degree `n`. Vertices with lower degree (e.g., degree 3) receive a smaller self-weight and are pulled more strongly toward their neighbours, breaking the cube's symmetry.
 
 **Pre-processing:** Split each face's diagonal so that all vertex degrees equal to 6, giving every vertex the same self-weight in the update formula, and the cube subdivides symmetrically.
 
@@ -329,7 +329,7 @@ Generally, I follow the spec and do the steps in order:
 
 **Extra Credit 1: Support meshes with boundary**
 
-According to H. Biermann, A. Levin, and D. Zorin, [_Piecewise smooth subdivision surfaces with normal control_](https://cims.nyu.edu/gcl/papers/biermann2000pss.pdf), Proceedings of SIGGRAPH 00, 2000, pp. 113–120: for boundary edges, the position of the new vertex should be the average of the two endpoints; for boundary vertices, the new position should be 3/4 of the old position + 1/8 &times; the sum of the two neighboring boundary vertices' positions.
+According to H. Biermann, A. Levin, and D. Zorin, [_Piecewise smooth subdivision surfaces with normal control_](https://cims.nyu.edu/gcl/papers/biermann2000pss.pdf): for boundary edges, the position of the new vertex should be the average of the two endpoints; for boundary vertices, the new position should be 3/4 of the old position + 1/8 &times; the sum of the two neighbouring boundary vertices' positions.
 
 **Extra Credit 2: Modified Butterfly subdivision scheme**
 
