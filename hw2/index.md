@@ -22,7 +22,7 @@ Key takeaways:
 
 de Casteljau's algorithm: Given N control points and parameter t, use linear interpolation to compute the N-1 control points of the next subdivision level. By applying this step recursively, we finally get a single point that lies on the Bezier curve.
 
-Implementation: given a vector of points, for i from 0 to size-1, use the lerp function to compute the control points of the next subdivision level. Do this recursively.
+Implementation: Given a vector of points, for i from 0 to size-1, use the lerp function to compute the control points of the next subdivision level. Repeat this recursively until a single point remains.
 
 #### Q2. Take a look at the provided .bzc files and create your own Bezier curve with 6 control points of your choosing. Use this Bezier curve for your screenshots below.
 
@@ -70,9 +70,9 @@ Implementation: given a vector of points, for i from 0 to size-1, use the lerp f
 
 #### Q1. Briefly explain how de Casteljau algorithm extends to Bezier surfaces and how you implemented it in order to evaluate Bezier surfaces.
 
-Extension: Apply de Casteljau's algorithm to each row of control points to converge each row into a single point. Then use all of these points (which form a new set of size n) to run de Casteljau's algorithm one more time.
+Extension: Apply de Casteljau's algorithm to each row of control points, reducing each row to a single point. Then use all of these points (which form a new set of size n) to run de Casteljau's algorithm one more time.
 
-Implementation: Continuously call evaluateStep (evaluate1D) to converge control points into one final point and collect the final points into a vector. Finally, call evaluate1D on the final points to get the point lying on the surface.
+Implementation: Repeatedly call evaluateStep (evaluate1D) to reduce the control points to a single point and collect the final points into a vector. Finally, call evaluate1D on the final points to get a point on the surface.
 
 #### Q2. Show a screenshot of bez/teapot.bez (not .dae) evaluated by your implementation.
 
@@ -87,7 +87,9 @@ Implementation: Continuously call evaluateStep (evaluate1D) to converge control 
 
 #### Q1. Briefly explain how you implemented the area-weighted vertex normals.
 
-First, get HalfedgeCIter h of that Vertex. Then, use `h->twin()->vertex()` and `h->twin()->next()->twin()->vertex()` to get the first neighbour and second neighbour. After getting the neighbours, compute the face normal and finally normalize them.
+1. Get `HalfedgeCIter h` of the vertex.
+2. Use `h->twin()->vertex()` and `h->twin()->next()->twin()->vertex()` to get the first and second neighbours.
+3. Compute each incident face's area-weighted normal, sum them, and normalize the result.
 
 #### Q2. Show screenshots of dae/teapot.dae comparing teapot shading with and without vertex normals.
 
@@ -110,7 +112,7 @@ First, get HalfedgeCIter h of that Vertex. Then, use `h->twin()->vertex()` and `
 
 #### Q1. Briefly explain how you implemented the edge flip operation and describe any interesting implementation / debugging tricks you have used.
 
-Following the guidance to first collect all iterators from the "before" picture, then reassign them according to the "after" picture.
+I followed the guidance: first collect all iterators from the "before" picture, then reassign them according to the "after" picture.
 
 Implementation Tricks: Reassign pointers by triangles.
 
@@ -123,9 +125,9 @@ Implementation Tricks: Reassign pointers by triangles.
 
 #### Q3. Write about your eventful debugging journey, if you have experienced one.
 
-First: I initially wrote `v0 = h2->vertex()`, which is simply reordering the halfedge pointers. Instead, I should write `v0->halfedge() = h2`, which reorders the vertex's pointer.
+1. I initially wrote `v0 = h2->vertex()`, which simply reassigns the local iterator rather than updating the mesh. Instead, I should write `v0->halfedge() = h2`, which updates the vertex's halfedge pointer.
 
-Second: I was confused about the degenerate case: Suppose D is the midpoint of BC of triangle ABC and we want to flip AD. The result is that the edge AD is deleted and no new edge is created, illustrated by the pictures:
+2. I was confused about the degenerate case: Suppose D is the midpoint of BC of triangle ABC and we want to flip AD. The result is that the edge AD is deleted and no new edge is created, illustrated by the pictures:
 
 <div class="image-grid">
   <table>
@@ -146,13 +148,13 @@ Second: I was confused about the degenerate case: Suppose D is the midpoint of B
   </table>
 </div>
 
-It took me quite a while to get the answer: flipping AD creates a new edge BC, which has already existed, and therefore it seems like only AD is deleted and no new edge is created.
+It took me quite a while to get the answer: flipping AD creates a new edge BC, which already exists, and therefore it seems like only AD is deleted and no new edge is created.
 
 ### Part 5: Edge split
 
 #### Q1. Briefly explain how you implemented the edge split operation and describe any interesting implementation / debugging tricks you have used.
 
-The implementation process is quite similar to Part 4, which is also drawing the "Before" and "After" graph and reassigning pointers according to the graph.
+The implementation process is quite similar to Part 4: draw the "Before" and "After" diagrams and reassign pointers accordingly.
 
 Implementation tricks: Do not move the external edges, otherwise you have to store their original next halfedges and faces.
 
@@ -172,7 +174,12 @@ Implementation tricks: Do not move the external edges, otherwise you have to sto
 
 #### Q4. Write about your eventful debugging journey, if you have experienced one.
 
-When implementing Part 4, I did not draw the "After" graph but only followed the guidance since it had already been drawn. And when I drew the "After" graph for Part 5, I simply drew a new graph without looking at the "Before" graph, which resulted in two serious problems: 1. the new vertex v4 should be the midpoint of v0 and v1, however, I reordered the vertices and it became the midpoint of v0 and v2. 2. I let the external halfedges h6, h7, h8, h9 become internal edges and created new halfedges to be new external edges. However, the external faces were not stored and therefore lost. After I drew a new "After" graph following the "Before" graph, I correctly implemented this Part.
+When implementing Part 4, I did not draw the "After" graph but only followed the guidance since it had already been drawn. When I drew the "After" graph for Part 5, I simply drew a new graph without looking at the "Before" graph, which resulted in two serious problems:
+
+1. The new vertex v4 should be the midpoint of v0 and v1; however, I reordered the vertices and it became the midpoint of v0 and v2.
+2. I let the external halfedges h6, h7, h8, h9 become internal edges and created new halfedges to be new external edges. However, the original external faces were not stored and were therefore lost.
+
+After I drew a new "After" graph following the "Before" graph, I correctly implemented this Part.
 
 <div class="image-grid">
   <table>
@@ -215,7 +222,7 @@ Generally, I follow the spec and do the steps in order:
 1. Reset all vertices/edges' `isNew = false` to avoid collision of multiple loop subdivision.
 2. **Step A.1:** Compute the positions of new vertices: for boundary edges, see Q4 below; for internal edges, use halfedge traversal to find 4 neighbour vertices and compute the new position according to the formula: 3/8 &times; (A + B) + 1/8 &times; (C + D).
 3. **Step A.2:** Compute the positions of old vertices: for boundary vertices, see Q4 below; for internal vertices, find all neighbours and compute the new position according to the formula: (1 - n &times; u) &times; original_position + u &times; original_neighbor_position_sum.
-4. **Step B.1:** Split original edges: save all original edges to avoid splitting new edges. For each original edge, split it and save the new vertex. Moreover, traverse all halfedges of the new vertex to find edges that connect a new vertex and an old vertex.
+4. **Step B.1:** Split original edges: store all original edges first to avoid splitting newly created edges. For each original edge, split it and save the new vertex. Additionally, traverse all halfedges of the new vertex to find edges that connect a new vertex and an old vertex.
 5. **Step B.2:** Flip new edges that connect a new vertex and an old vertex.
 6. **Step C:** Update positions: update new vertex's position using `e::newPosition` and old vertex's position using `v::newPosition`.
 
@@ -246,11 +253,11 @@ Generally, I follow the spec and do the steps in order:
   </table>
 </div>
 
-What happens: sharp corners and edges become smooth.
+**What happens:** Sharp corners and edges become smooth.
 
-Reason: vertices are averaged by their neighbours.
+**Reason:** Vertices are averaged by their neighbours.
 
-Pre-processing: pre-split the corner several times to increase its neighbours such that it will not move as much after averaging.
+**Pre-processing:** Pre-split the corner several times to increase its neighbours such that it will not move as much after averaging.
 
 #### Q3. Load dae/cube.dae. Perform several iterations of loop subdivision on the cube. Notice that the cube becomes slightly asymmetric after repeated subdivisions. Can you pre-process the cube with edge flips and splits so that the cube subdivides symmetrically? Document these effects and explain why they occur. Also explain how your pre-processing helps alleviate the effects.
 
@@ -279,25 +286,25 @@ Pre-processing: pre-split the corner several times to increase its neighbours su
   </table>
 </div>
 
-Reason: The original vertex degrees are: 3, 4, 4, 4, 5, 5, 5, 6. For the vertex whose degree is 3, the weight of itself in computing the new position is less than others and therefore it is less likely to keep its position.
+**Reason:** The original vertex degrees are: 3, 4, 4, 4, 5, 5, 5, 6. For the vertex whose degree is 3, its self-weight in the position update formula is lower than that of other vertices, so it shifts more from its original position.
 
-Pre-processing: split each diagonal so that every vertex has degree 6 and therefore the weights become the same.
+**Pre-processing:** Split each diagonal so that every vertex has degree 6 and therefore the weights become the same.
 
 #### Q4. Extra Credit
 
 **Extra Credit 1: Support meshes with boundary**
 
-According to H. Biermann, A. Levin, and D. Zorin, [_Piecewise smooth subdivision surfaces with normal control_](https://cims.nyu.edu/gcl/papers/biermann2000pss.pdf), Proceedings of SIGGRAPH 00, 2000, pp. 113–120: for boundary edges, the position of the new vertex should be the average of the two endpoints; for boundary vertices, the new position should be 3/4 of the old position + 1/8 &times; the sum of two neighbour boundary points.
+According to H. Biermann, A. Levin, and D. Zorin, [_Piecewise smooth subdivision surfaces with normal control_](https://cims.nyu.edu/gcl/papers/biermann2000pss.pdf), Proceedings of SIGGRAPH 00, 2000, pp. 113–120: for boundary edges, the position of the new vertex should be the average of the two endpoints; for boundary vertices, the new position should be 3/4 of the old position + 1/8 &times; the sum of the two neighboring boundary vertices' positions.
 
 **Extra Credit 2: Modified Butterfly subdivision scheme**
 
-I implemented the modified Butterfly scheme. According to D. Zorin, P. Schröder, and W. Sweldens, [_Interpolating Subdivision for Meshes with Arbitrary Topology_](https://mrl.cs.nyu.edu/~dzorin/papers/zorin1996ism.pdf), the only difference is the calculation of new vertices and there is no need to update old vertices. For boundary edges, the position of new vertex should be -1/16 \* (position of the previous boundary vertex of one endpoint + position of the next boundary vertex of another endpoint) + 9/16 \* (sum of positions of two endpoints).
+I implemented the modified Butterfly scheme. According to D. Zorin, P. Schröder, and W. Sweldens, [_Interpolating Subdivision for Meshes with Arbitrary Topology_](https://mrl.cs.nyu.edu/~dzorin/papers/zorin1996ism.pdf), the only difference is in the calculation of new vertex positions, and old vertices do not need to be updated. For boundary edges, the position of the new vertex should be -1/16 \* (position of the previous boundary vertex of one endpoint + position of the next boundary vertex of another endpoint) + 9/16 \* (sum of positions of two endpoints).
 
 For internal edges, there are 3 cases:
 
 1. Both endpoints have degree of 6: we can use the graph to illustrate the update rules:
    ![Butterfly Rules](./images/butterfly.png)
-   where a =1/2, b=1/8, c= -1/16, d=0
+   where a = 1/2, b = 1/8, c = -1/16, d = 0
 2. One endpoint has degree 6 and the other has degree K (K &ne; 6): only use the K neighbours of the irregular vertex. The new position is 3/4 \* old_position + the weighted sum of those neighbours' positions, where the weight for the j-th neighbour is s_j = (1/4 + cos(2&pi;j/K) + 1/2 cos(4&pi;j/K)) / K. Special cases: for K = 3, s_0 = 5/12, s_1 = s_2 = -1/12; for K = 4, s_0 = 3/8, s_2 = -1/8, s_1 = s_3 = 0.
 3. Both endpoints do not have degree of 6: take the average of the values computed in case two.
 
